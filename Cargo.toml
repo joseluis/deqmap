@@ -1,0 +1,28 @@
+[package]
+name = "deqmap"
+description = """An ordered, double-ended collection with optional keys,
+over a VecDeque and a Hasmap."""
+version = "0.0.1"
+edition = "2021"
+resolver = "2"
+rust-version = "1.64.0"
+authors = ["José Luis Cruz <joseluis@andamira.net>"]
+repository = "https://github.com/joseluis/deqmap"
+documentation = "https://docs.rs/deqmap"
+license = "MIT OR Apache-2.0"
+include = [
+	"/src/**/*.rs",
+	"/Cargo.toml",
+	"/README.md",
+	"/LICENSE-*",
+]
+categories = ["data-structures"]
+keywords = []
+publish = false
+
+[dependencies]
+
+[badges]
+maintenance = { status = "experimental" }
+
+[dev-dependencies]
