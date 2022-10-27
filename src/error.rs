@@ -10,7 +10,7 @@ pub type Result<N> = result::Result<N, Error>;
 
 /// Common error type.
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error {
     /// Index is out of bound.
     IndexOutOfBounds,
@@ -45,6 +45,7 @@ mod std_impls {
             }
         }
     }
+
     impl From<&str> for Error {
         fn from(err: &str) -> Self {
             Error::new(err)

@@ -5,7 +5,10 @@
 
 use crate::error::{Error, Result};
 use core::{borrow::Borrow, cmp::min, hash::Hash};
-use std::collections::{hash_map::{HashMap, Entry}, VecDeque};
+use std::collections::{
+    hash_map::{Entry, HashMap},
+    VecDeque,
+};
 
 /// A double-ended, ordered collection of elements with optional keys,
 /// leveraging a [`VecDeque`] and a [`HashMap`].
@@ -23,16 +26,6 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
             vec: VecDeque::default(),
             map: HashMap::default(),
         }
-    }
-
-    /// Returns a new deqmap filled from an iterator over values.
-    pub fn from_iter<I>(values: I) -> DeqMap<K, V>
-    where
-        I: IntoIterator<Item = V>,
-    {
-        let mut qm = Self::new();
-        qm.extend(values);
-        qm
     }
 
     /// Returns a new deqmap filled from a vec of values.
@@ -217,7 +210,7 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
         self.vec.pop_back().map(|v| (key, v))
     }
 
-    /// Prepends an unkeyed `value` to the front.
+    /// Pushes an unkeyed `value` to the front (index 0).
     ///
     /// This operation updates all entries in the hashmap.
     ///
@@ -236,10 +229,11 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
         self.map.iter_mut().for_each(|(_k, v)| *v += 1);
     }
 
-    /// Pushes an unkeyed `value` to the back.
+    /// Pushes an unkeyed `value` to the back and returns its index.
     #[inline]
-    pub fn push_back(&mut self, value: V) {
-        self.vec.push_back(value)
+    pub fn push_back(&mut self, value: V) -> usize {
+        self.vec.push_back(value);
+        self.vec.len() - 1
     }
 
     /// Inserts a `value` associated to a `key`, at the front of the collection.
@@ -341,59 +335,65 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
 
     /// Provides a reference to the value at `index`.
     ///
-    /// Returns `None` if the index is out of bounds.
+    /// # Errors
+    /// Errors if the index is out of bounds.
     #[inline]
-    pub fn get(&self, index: usize) -> Option<&V> {
-        self.vec.get(index)
+    pub fn get(&self, index: usize) -> Result<&V> {
+        self.vec.get(index).ok_or(Error::IndexOutOfBounds)
     }
 
     /// Provides a mutable reference to the value at `index`.
     ///
-    /// Returns `None` if the index is out of bounds.
+    /// # Errors
+    /// Errors if the index is out of bounds.
     #[inline]
-    pub fn get_mut(&mut self, index: usize) -> Option<&mut V> {
-        self.vec.get_mut(index)
+    pub fn get_mut(&mut self, index: usize) -> Result<&mut V> {
+        self.vec.get_mut(index).ok_or(Error::IndexOutOfBounds)
     }
 
     /// Provides a reference to the value at `index` and to its associated key.
     ///
-    /// Returns `None` if the index is out of bounds.
+    /// # Errors
+    /// Errors if the index is out of bounds.
     #[inline]
-    pub fn get_with_key(&self, index: usize) -> Option<(Option<&K>, &V)> {
+    pub fn get_with_key(&self, index: usize) -> Result<(Option<&K>, &V)> {
         if let Some(value) = self.vec.get(index) {
-            let key = self.find_key(index);
-            Some((key, value))
+            let key = self.find_key(index)?;
+            Ok((key, value))
         } else {
-            None
+            Err(Error::IndexOutOfBounds)
         }
     }
 
     /// Provides a mutable reference to the value at `index` and its associated
-    /// key, if there is any, or `None` if the index is out of bounds.
+    /// key, if there is any.
+    ///
+    /// # Errors
+    /// Errors if the index is out of bounds.
     #[inline]
-    pub fn get_mut_with_key(&mut self, index: usize) -> Option<(Option<&K>, &mut V)> {
+    pub fn get_mut_with_key(&mut self, index: usize) -> Result<(Option<&K>, &mut V)> {
         if let Some(value) = self.vec.get_mut(index) {
-            // these alternatives aren't allowed:
-            // let key = self.find_key(index);
-            // let key = self.find_mut_key(index);
             let key = self
                 .map
                 .iter_mut()
                 .find_map(|(key, &mut idx)| if idx == index { Some(key) } else { None });
-            Some((key, value))
+            Ok((key, value))
         } else {
-            None
+            Err(Error::IndexOutOfBounds)
         }
     }
 
     /// Provides a reference to the associated key at `index`, or `None`
-    /// if there is no associated key, or if the index is out of bounds.
+    /// if there is no associated key.
+    ///
+    /// # Errors
+    /// Errors if the index is out of bounds.
     #[inline]
-    pub fn find_key(&self, index: usize) -> Option<&K> {
+    pub fn find_key(&self, index: usize) -> Result<Option<&K>> {
         if index < self.len() {
-            self.find_key_unchecked(index)
+            Ok(self.find_key_unchecked(index))
         } else {
-            None
+            Err(Error::IndexOutOfBounds)
         }
     }
 
@@ -410,46 +410,90 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     }
 
     /// Provides a reference to the associated key, and the value at `index`, or
-    /// `None` if there is no associated key or if the index is out of bounds.
+    /// `None` if there is no associated key.
+    ///
+    /// # Errors
+    /// Errors if the index is out of bounds.
     ///
     /// See also [`get_with_key`][Self#method.get_with_key], which always
     /// returns an existing value even if it has no associated key.
     #[inline]
-    pub fn find_key_value(&self, index: usize) -> Option<(&K, &V)> {
+    pub fn find_key_value(&self, index: usize) -> Result<Option<(&K, &V)>> {
         if index < self.len() {
-            self.map.iter().find_map(|(key, &i)| {
+            Ok(self.map.iter().find_map(|(key, &i)| {
                 if i == index {
                     self.vec.get(i).map(|v| (key, v))
                 } else {
                     None
                 }
-            })
+            }))
         } else {
-            None
+            Err(Error::IndexOutOfBounds)
         }
     }
+    // TODO: find_key_value unchecked
 
     /// Provides the associated key and mutable value at `index`, or `None`
-    /// if the index is out of bounds, or if there is no associated key.
+    /// if there is no associated key.
+    ///
+    /// # Errors
+    /// Errors if the index is out of bounds.
     ///
     /// See also [`get_mut_with_key`][Self#method.get_mut_with_key], which
     /// always returns an existing value even if it has no associated key.
     #[inline]
-    pub fn find_mut_key_value(&mut self, index: usize) -> Option<(&K, &mut V)> {
+    pub fn find_mut_key_value(&mut self, index: usize) -> Result<Option<(&K, &mut V)>> {
         if index < self.len() {
-            if let Some(key) =
-                self.map
-                    .iter_mut()
-                    .find_map(|(key, &mut idx)| if idx == index { Some(key) } else { None })
-            {
-                let value = self.vec.get_mut(index).unwrap();
-                Some((key, value))
-            } else {
-                None
-            }
+            Ok(
+                if let Some(key) =
+                    self.map
+                        .iter_mut()
+                        .find_map(|(key, &mut idx)| if idx == index { Some(key) } else { None })
+                {
+                    let value = self.vec.get_mut(index).unwrap();
+                    Some((key, value))
+                } else {
+                    None
+                },
+            )
         } else {
-            None
+            Err(Error::IndexOutOfBounds)
         }
+    }
+    // TODO: find_key_value unchecked
+
+    /// Pushes an unkeyed `value` at `index`.
+    ///
+    /// This operation cycles through all entries in the hashmap.
+    ///
+    /// # Errors
+    /// Errors if the index is out of bounds.
+    #[inline]
+    pub fn push_at(&mut self, index: usize, value: V) -> Result<()> {
+        if index < self.len() {
+            self.push_at_unchecked(index, value);
+            Ok(())
+        } else {
+            Err(Error::IndexOutOfBounds)
+        }
+    }
+
+    /// Pushes an unkeyed `value` at `index`.
+    ///
+    /// This operation cycles through all entries in the hashmap.
+    ///
+    /// # Panics
+    /// Panics if the index is out of bounds.
+    #[inline]
+    pub fn push_at_unchecked(&mut self, index: usize, value: V) {
+        // inserting at `index` shifts the indices >= index
+        self.vec.insert(index, value);
+        // update existing map indices
+        self.map.iter_mut().for_each(|(_, i)| {
+            if *i >= index {
+                *i += 1
+            }
+        });
     }
 
     /// Inserts a `key`ed `value` at `index`,
@@ -481,7 +525,7 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
         if index < self.len() {
             Ok(self.insert_at_unchecked(index, key, value))
         } else {
-            Err(Error::new("Index out of bounds"))
+            Err(Error::IndexOutOfBounds)
         }
     }
 
@@ -522,7 +566,7 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
             self.swap_unchecked(i, j);
             Ok(())
         } else {
-            Err(Error::new("Index out of bounds"))
+            Err(Error::IndexOutOfBounds)
         }
     }
     /// Swaps elements at indices `i` and `j`.
@@ -563,11 +607,13 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
         self.vec.extend(values);
     }
 
-    // TODO: create constructor
     /// Extends the deqmap with the provided iterator of `keys_values` pairs.
     ///
     /// If a key already exists, its associated value will get updated.
-    pub fn extend_keyed<I>(&mut self, keys_values: I) where I: IntoIterator<Item = (K, V)>, {
+    pub fn extend_keyed<I>(&mut self, keys_values: I)
+    where
+        I: IntoIterator<Item = (K, V)>,
+    {
         let (keys, values): (Vec<_>, Vec<_>) = keys_values.into_iter().unzip();
 
         // the index of the next new element
@@ -581,7 +627,7 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
                     e.insert(index);
                     self.vec.push_back(v);
                     index += 1;
-                },
+                }
             }
         }
     }
@@ -603,10 +649,13 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
         self.vec.iter_mut()
     }
 
-    /// Returns an unordered iterator over just the keyed values.
+    /// Returns an unordered iterator over just the keyed values, with keys.
     #[inline]
-    pub fn iter_keyed(&self) -> impl Iterator<Item = Option<&V>> {
-        self.map.iter().map(|(_k, idx)| self.vec.get(*idx))
+    pub fn iter_keyed(&self) -> impl Iterator<Item = (&K, &V)> {
+        // SAFETY the entry should exist in the Vec
+        self.map
+            .iter()
+            .map(|(k, idx)| (k, self.vec.get(*idx).unwrap()))
     }
 
     /// Returns an iterator over all the values, with their keys.
@@ -629,6 +678,28 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     }
 }
 
+impl<K, V> FromIterator<V> for DeqMap<K, V>
+where
+    K: Hash + Eq,
+{
+    fn from_iter<I: IntoIterator<Item = V>>(iter: I) -> Self {
+        let mut qm = DeqMap::new();
+        qm.extend(iter);
+        qm
+    }
+}
+
+impl<K, V> FromIterator<(K, V)> for DeqMap<K, V>
+where
+    K: Hash + Eq,
+{
+    fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
+        let mut qm = DeqMap::new();
+        qm.extend_keyed(iter);
+        qm
+    }
+}
+
 /// An iterator over references to values and optional keys of a [`DeqMap`].
 pub struct DeqMapIter<'qm, K, V>
 where
@@ -644,10 +715,9 @@ where
 {
     type Item = (Option<&'qm K>, &'qm V);
     fn next(&mut self) -> Option<Self::Item> {
-        // if let Some(v) = self.qm.vec.get(self.idx) {
         if self.qm.vec.get(self.idx).is_some() {
             self.idx += 1;
-            self.qm.get_with_key(self.idx - 1)
+            self.qm.get_with_key(self.idx - 1).ok()
         } else {
             None
         }

@@ -3,7 +3,7 @@
 //!
 //
 
-use super::DeqMap;
+use crate::{error::Error, DeqMap};
 
 #[test]
 fn deqmap() {
@@ -26,9 +26,9 @@ fn deqmap() {
     assert_eq![2, qm.len_keyed()];
 
     // get keyless
-    assert_eq![Some(&0), qm.get(0)];
-    assert_eq![Some(&4), qm.get(4)];
-    assert_eq![None, qm.get(6)];
+    assert_eq![Ok(&0), qm.get(0)];
+    assert_eq![Ok(&4), qm.get(4)];
+    assert_eq![Err(Error::IndexOutOfBounds), qm.get(6)];
 
     // get keyed
     assert_eq![Some(&4), qm.get_keyed("Four")];
