@@ -4,6 +4,7 @@
 //
 
 use core::result;
+use std::collections::TryReserveError;
 
 /// Common result type.
 pub type Result<N> = result::Result<N, Error>;
@@ -14,6 +15,12 @@ pub type Result<N> = result::Result<N, Error>;
 pub enum Error {
     /// Index is out of bound.
     IndexOutOfBounds,
+
+    /// The key already exists.
+    KeyAlreadyExists,
+
+    ///
+    TryReserve(TryReserveError),
 
     /// A generic error message.
     String(String),
@@ -28,7 +35,7 @@ impl Error {
 
 /// impl Display & Error
 mod std_impls {
-    use super::Error;
+    use super::{Error, TryReserveError};
     use std::fmt::Debug;
     use std::{error::Error as StdError, fmt};
 
@@ -38,6 +45,7 @@ mod std_impls {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             match self {
                 Error::IndexOutOfBounds => write!(f, "Index is out of bounds."),
+                Error::KeyAlreadyExists => write!(f, "The key already exists."),
                 Error::String(e) => Debug::fmt(e, f),
 
                 #[allow(unreachable_patterns)]
@@ -55,6 +63,12 @@ mod std_impls {
     impl From<String> for Error {
         fn from(err: String) -> Self {
             Error::String(err)
+        }
+    }
+
+    impl From<TryReserveError> for Error {
+        fn from(err: TryReserveError) -> Self {
+            Error::TryReserve(err)
         }
     }
 }
