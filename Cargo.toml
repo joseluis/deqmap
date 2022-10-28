@@ -1,7 +1,6 @@
 [package]
 name = "deqmap"
-description = """An ordered, double-ended collection with optional keys,
-over a VecDeque and a Hasmap."""
+description = "An double-ended, ordered collection with optional keys."
 version = "0.0.1"
 edition = "2021"
 resolver = "2"
@@ -18,7 +17,7 @@ include = [
 ]
 categories = ["data-structures"]
 keywords = []
-publish = false
+publish = true
 
 [dependencies]
 
