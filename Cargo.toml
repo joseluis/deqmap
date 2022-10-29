@@ -1,6 +1,6 @@
 [package]
 name = "deqmap"
-description = "An double-ended, ordered collection with optional keys."
+description = "A double-ended queue with optional keys."
 version = "0.0.1"
 edition = "2021"
 resolver = "2"

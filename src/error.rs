@@ -6,13 +6,13 @@
 use core::result;
 use std::collections::TryReserveError;
 
-/// Common result type.
-pub type Result<N> = result::Result<N, Error>;
+/// `DeqMap` result type.
+pub type DeqMapResult<N> = result::Result<N, DeqMapError>;
 
-/// Common error type.
+/// `DeqMap` error type.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Error {
+pub enum DeqMapError {
     /// Index is out of bound.
     IndexOutOfBounds,
 
@@ -26,7 +26,7 @@ pub enum Error {
     String(String),
 }
 
-impl Error {
+impl DeqMapError {
     /// New miscelaneous error.
     pub fn new(err: impl ToString) -> Self {
         Self::String(err.to_string())
@@ -35,18 +35,18 @@ impl Error {
 
 /// impl Display & Error
 mod std_impls {
-    use super::{Error, TryReserveError};
+    use super::{DeqMapError, TryReserveError};
     use std::fmt::Debug;
     use std::{error::Error as StdError, fmt};
 
-    impl StdError for Error {}
+    impl StdError for DeqMapError {}
 
-    impl fmt::Display for Error {
+    impl fmt::Display for DeqMapError {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             match self {
-                Error::IndexOutOfBounds => write!(f, "Index is out of bounds."),
-                Error::KeyAlreadyExists => write!(f, "The key already exists."),
-                Error::String(e) => Debug::fmt(e, f),
+                DeqMapError::IndexOutOfBounds => write!(f, "Index is out of bounds."),
+                DeqMapError::KeyAlreadyExists => write!(f, "The key already exists."),
+                DeqMapError::String(e) => Debug::fmt(e, f),
 
                 #[allow(unreachable_patterns)]
                 _ => write!(f, "Error"),
@@ -54,21 +54,21 @@ mod std_impls {
         }
     }
 
-    impl From<&str> for Error {
+    impl From<&str> for DeqMapError {
         fn from(err: &str) -> Self {
-            Error::new(err)
+            DeqMapError::new(err)
         }
     }
 
-    impl From<String> for Error {
+    impl From<String> for DeqMapError {
         fn from(err: String) -> Self {
-            Error::String(err)
+            DeqMapError::String(err)
         }
     }
 
-    impl From<TryReserveError> for Error {
+    impl From<TryReserveError> for DeqMapError {
         fn from(err: TryReserveError) -> Self {
-            Error::TryReserve(err)
+            DeqMapError::TryReserve(err)
         }
     }
 }

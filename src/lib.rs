@@ -13,10 +13,11 @@
 )]
 #![forbid(unsafe_code)]
 
-pub mod error;
+mod error;
+pub use error::{DeqMapError, DeqMapResult};
 
 mod deqmap;
-pub use self::deqmap::DeqMap;
+pub use self::deqmap::{DeqMap, DeqMapIter};
 
 #[cfg(test)]
 mod tests;

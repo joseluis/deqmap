@@ -3,15 +3,15 @@
 //!
 //
 
-use crate::error::{Error, Result};
+use crate::{DeqMapError as Error, DeqMapResult as Result};
 use core::{borrow::Borrow, hash::Hash};
 use std::collections::{
     hash_map::{Entry, HashMap},
     VecDeque,
 };
 
-/// A double-ended, ordered collection of elements with optional keys,
-/// leveraging a [`VecDeque`] and a [`HashMap`].
+/// A double-ended queue with optional keys,
+/// implemented a with [`VecDeque`] and a [`HashMap`].
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DeqMap<K: Hash + Eq, V> {
     vals: VecDeque<V>,
@@ -67,7 +67,7 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
         }
     }
 
-    /// Returns a new deqmap filled from a vec of tuples of keys and values.
+    /// Converts a vec of keys and values `Vec<(K, V)>` into a `DeqMap<K, V>`.
     ///
     /// # Examples
     /// ```
@@ -77,9 +77,9 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     /// let dm = DeqMap::from_keyed_vec(vec);
     /// ```
     pub fn from_keyed_vec(keyed_values: Vec<(K, V)>) -> DeqMap<K, V> {
-        let mut qm = Self::with_capacity(keyed_values.len(), keyed_values.len());
-        qm.extend_keyed(keyed_values);
-        qm
+        let mut dm = Self::with_capacity(keyed_values.len(), keyed_values.len());
+        dm.extend_keyed(keyed_values);
+        dm
     }
 
     /// Returns a new empty `DeqMap`, with at least the specified capacity for
@@ -306,9 +306,9 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     /// ```
     /// use deqmap::DeqMap;
     ///
-    /// let mut dm: DeqMap<u64, i32> = DeqMap::with_capacity(15, 15);
+    /// let mut dm: DeqMap<u64, i32> = DeqMap::with_capacity(7, 7);
     /// dm.extend(0..4);
-    /// assert![dm.capacity() >= (15, 15)];
+    /// assert_eq![dm.capacity(), (7, 7)];
     /// dm.shrink_to_fit();
     /// assert![dm.capacity_keys() == 0];
     /// assert![dm.capacity_values() >= 4];
@@ -338,12 +338,36 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     }
 
     /// Shrinks the capacity of just the keys as much as possible.
+    ///
+    /// # Examples
+    /// ```
+    /// use deqmap::DeqMap;
+    ///
+    /// let mut dm: DeqMap<&str, i32> = DeqMap::with_capacity(14, 4);
+    /// dm.extend_keyed([("a", 1), ("b", 2), ("c", 3), ("d", 4)].into_iter());
+    /// assert_eq![dm.capacity_keys(), 14];
+    /// dm.shrink_to_fit();
+    /// assert![dm.capacity_keys() >= 4];
+    /// assert![dm.capacity_keys() < 14];
+    /// ```
     #[inline]
     pub fn shrink_keys_to_fit(&mut self) {
         self.keys.shrink_to_fit();
     }
 
     /// Shrinks the capacity of both keys and values, with a lower limit.
+    ///
+    /// # Examples
+    /// ```
+    /// use deqmap::DeqMap;
+    ///
+    /// let mut dm: DeqMap<u64, i32> = DeqMap::with_capacity(14, 15);
+    /// dm.extend(0..4);
+    /// assert_eq![dm.capacity(), (14, 15)];
+    /// dm.shrink_to(6);
+    /// assert![dm.capacity() >= (6, 6)];
+    /// assert![dm.capacity() < (14, 15)];
+    /// ```
     #[inline]
     pub fn shrink_to(&mut self, min_capacity: usize) {
         self.vals.shrink_to(min_capacity);
@@ -688,10 +712,10 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     /// # Examples
     /// ```
     /// # use deqmap::DeqMap;
-    /// let mut qm: DeqMap<u8, u8> = DeqMap::new();
-    /// qm.push_front(1);
-    /// qm.push_front(2);
-    /// assert_eq!(qm.front(), Some(&2));
+    /// let mut dm: DeqMap<u8, u8> = DeqMap::new();
+    /// dm.push_front(1);
+    /// dm.push_front(2);
+    /// assert_eq!(dm.front(), Some(&2));
     /// ```
     #[inline]
     pub fn push_front(&mut self, value: V) {
@@ -1031,17 +1055,17 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     ///
     /// # Examples
     /// ```
-    /// # use deqmap::DeqMap;
+    /// use deqmap::DeqMap;
     ///
-    /// let mut qm = DeqMap::from_iter(["v1", "v2"]);
+    /// let mut dm = DeqMap::from_iter(["v1", "v2"]);
     ///
-    /// assert![matches![qm.insert_at(1, "k3", "v3"), Ok(None)]];
-    /// assert_eq![qm.as_slice(), &["v1", "v3", "v2"]];
+    /// assert![matches![dm.insert_at(1, "k3", "v3"), Ok(None)]];
+    /// assert_eq![dm.as_slice(), &["v1", "v3", "v2"]];
     ///
     /// // an existing key remains unmodified, exiting value is returned
-    /// assert![matches![qm.insert_at(1, "k3", "v3_new"), Ok(Some(v)) if *v == "v3"]];
+    /// assert![matches![dm.insert_at(1, "k3", "v3_new"), Ok(Some(v)) if *v == "v3"]];
     /// // an out-of-bounds index returns an error
-    /// assert![qm.insert_at(9, "k4", "v4").is_err()];
+    /// assert![dm.insert_at(9, "k4", "v4").is_err()];
     /// ```
     #[inline]
     pub fn insert_at(&mut self, index: usize, key: K, value: V) -> Result<Option<&V>> {
@@ -1083,8 +1107,25 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
 
     /// Retains only the elements specified by the predicate over the values.
     ///
-    /// This operation is slow, because allocates the retained values and later
-    /// iterates over the hashmap to retain and update the pertinent keys.
+    /// In other words, remove all values `v` for which `f(&v)` returns false,
+    /// along with their keys, if any.
+    ///
+    /// This method operates in place, visiting each element exactly once in the
+    /// original order, and preserves the order of the retained elements.
+    ///
+    /// This operation is slow, since it first allocates the retained indexes
+    /// and then iterates over the keys to update them.
+    ///
+    /// # Examples
+    /// ```
+    /// use deqmap::DeqMap;
+    ///
+    /// let mut dm = DeqMap::<&str, u8>::from(vec![("a", 1), ("b", 2), ("c", 3)]);
+    ///
+    /// dm.retain(|&v| v == 3);
+    /// assert_eq![dm.as_slice(), &[3]];
+    /// assert_eq![dm.len(), (1, 1)];
+    /// ```
     #[inline]
     pub fn retain<F>(&mut self, mut f: F)
     where
@@ -1095,8 +1136,30 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
 
     /// Retains only the elements specified by the predicate over the values.
     ///
-    /// This operation is slow, because allocates the retained values and later
-    /// iterates over the hashmap to retain and update the pertinent keys.
+    /// In other words, remove all values `v` for which `f(&v)` returns false,
+    /// along with their keys, if any.
+    ///
+    /// This method operates in place, visiting each element exactly once in the
+    /// original order, and preserves the order of the retained elements.
+    ///
+    /// This operation is slow, because it allocates the retained indexes and
+    /// then iterates over the keys in order to retain and update them.
+    ///
+    /// # Examples
+    /// ```
+    /// use deqmap::DeqMap;
+    ///
+    /// let mut dm = DeqMap::<&str, u8>::from(vec![("a", 1), ("b", 2), ("c", 3)]);
+    ///
+    /// dm.retain_mut(|v| if *v == 3 {
+    ///     *v += 1;
+    ///     true
+    /// } else {
+    ///     false
+    /// });
+    /// assert_eq![dm.as_slice(), &[4]];
+    /// assert_eq![dm.len(), (1, 1)];
+    /// ```
     pub fn retain_mut<F>(&mut self, mut f: F)
     where
         F: FnMut(&mut V) -> bool,
@@ -1167,9 +1230,21 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
 
     /* truncate */
 
-    /// Shortens the deqmap, keeping the first `len` elements and dropping the rest.
+    /// Shortens the deqmap, keeping the first `len` values and dropping the rest.
     ///
-    /// If `len` is greater than the deque’s current length, this has no effect.
+    /// If `len` is greater than the current `len_values`, this has no effect.
+    ///
+    /// # Examples
+    /// ```
+    /// use deqmap::DeqMap;
+    ///
+    /// let mut dm = DeqMap::<&str, u8>::from(vec![("a", 1), ("b", 2), ("c", 3)]);
+    /// assert_eq![dm.len_values(), 3];
+    ///
+    /// dm.truncate(2);
+    /// assert_eq![dm.len_values(), 2];
+    /// assert_eq![dm.pop_back_with_key(), Some((Some("b"), 2))];
+    /// ```
     #[inline]
     pub fn truncate(&mut self, len: usize) {
         if len <= self.vals.len() {
@@ -1179,9 +1254,6 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     }
 
     /* swap */
-
-    // TODO: swap_remove_front
-    // TODO: swap_remove_back
 
     /// Swaps elements at indices `i` and `j`.
     ///
@@ -1338,7 +1410,7 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     /// ```
     #[inline]
     pub fn iter_with_keys(&self) -> DeqMapIter<'_, K, V> {
-        DeqMapIter { qm: self, idx: 0 }
+        DeqMapIter { dm: self, idx: 0 }
     }
 }
 
@@ -1347,9 +1419,9 @@ where
     K: Hash + Eq,
 {
     fn from_iter<I: IntoIterator<Item = V>>(iter: I) -> Self {
-        let mut qm = DeqMap::new();
-        qm.extend(iter);
-        qm
+        let mut dm = DeqMap::new();
+        dm.extend(iter);
+        dm
     }
 }
 
@@ -1358,30 +1430,30 @@ where
     K: Hash + Eq,
 {
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
-        let mut qm = DeqMap::new();
-        qm.extend_keyed(iter);
-        qm
+        let mut dm = DeqMap::new();
+        dm.extend_keyed(iter);
+        dm
     }
 }
 
 /// An iterator over references to values and optional keys of a [`DeqMap`].
-pub struct DeqMapIter<'qm, K, V>
+pub struct DeqMapIter<'dm, K, V>
 where
     K: Hash + Eq,
 {
     idx: usize,
-    qm: &'qm DeqMap<K, V>,
+    dm: &'dm DeqMap<K, V>,
 }
 
-impl<'qm, K, V> Iterator for DeqMapIter<'qm, K, V>
+impl<'dm, K, V> Iterator for DeqMapIter<'dm, K, V>
 where
     K: Hash + Eq,
 {
-    type Item = (Option<&'qm K>, &'qm V);
+    type Item = (Option<&'dm K>, &'dm V);
     fn next(&mut self) -> Option<Self::Item> {
-        if self.qm.vals.get(self.idx).is_some() {
+        if self.dm.vals.get(self.idx).is_some() {
             self.idx += 1;
-            self.qm.get_with_key(self.idx - 1).ok()
+            self.dm.get_with_key(self.idx - 1).ok()
         } else {
             None
         }
@@ -1390,24 +1462,24 @@ where
 
 // FIXME:
 // /// An iterator over mutable references to values and optional keys of a [`DeqMap`].
-// pub struct DeqMapIterMut<'qm, K, V>
+// pub struct DeqMapIterMut<'dm, K, V>
 // where
 //     K: Hash + Eq,
 // {
 //     idx: usize,
-//     qm: &'qm mut DeqMap<K, V>,
+//     dm: &'dm mut DeqMap<K, V>,
 // }
 //
-// impl<'qm, 'a, K, V> Iterator for DeqMapIterMut<'qm, K, V>
+// impl<'dm, 'a, K, V> Iterator for DeqMapIterMut<'dm, K, V>
 // where
 //     K: Hash + Eq,
 // {
-//     type Item = (Option<&'qm K>, &'qm mut V);
-//     fn next(&'qm mut self) -> Option<Self::Item> {
-//         // if let Some(v) = self.qm.vec.get(self.idx) {
-//         if self.qm.vec.get(self.idx).is_some() {
+//     type Item = (Option<&'dm K>, &'dm mut V);
+//     fn next(&'dm mut self) -> Option<Self::Item> {
+//         // if let Some(v) = self.dm.vec.get(self.idx) {
+//         if self.dm.vec.get(self.idx).is_some() {
 //             self.idx += 1;
-//             self.qm.get_mut_with_key(self.idx -1)
+//             self.dm.get_mut_with_key(self.idx -1)
 //         } else {
 //             None
 //         }
@@ -1441,5 +1513,21 @@ impl<K: Hash + Eq, V> From<Vec<V>> for DeqMap<K, V> {
     /// ```
     fn from(vec: Vec<V>) -> Self {
         DeqMap::from_vec(vec)
+    }
+}
+
+impl<K: Hash + Eq, V> From<Vec<(K, V)>> for DeqMap<K, V> {
+    /// Converts a vec of keys and values `Vec<K, V>` into a `DeqMap<K, V>`.
+    ///
+    /// # Examples
+    /// ```
+    /// use deqmap::DeqMap;
+    ///
+    /// let dm1 = DeqMap::<&str, i32>::from(vec![("a", 1), ("b", 2)]);
+    /// let dm2 = vec![("a", 1), ("b", 2)].into();
+    /// assert_eq![dm1, dm2];
+    /// ```
+    fn from(vec: Vec<(K, V)>) -> Self {
+        DeqMap::from_keyed_vec(vec)
     }
 }

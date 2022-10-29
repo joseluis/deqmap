@@ -4,6 +4,11 @@
 cl = "clippy"
 clq = "clippy --quiet"
 
+# CLEAN THIS PACKAGE
+cp = "clean --package deqmap"
+crp = "clean --release --package deqmap"
+cpr = "clean --release --package deqmap"
+
 # DOC
 d = "doc --no-deps"
 do = "doc --no-deps --open"

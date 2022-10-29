@@ -3,7 +3,7 @@
 //!
 //
 
-use crate::{error::Error, DeqMap};
+use crate::{error::DeqMapError as Error, DeqMap};
 
 #[test]
 fn deqmap() {
