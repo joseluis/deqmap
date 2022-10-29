@@ -52,6 +52,21 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
         }
     }
 
+    /// Converts a vec of keys and values `Vec<(K, V)>` into a `DeqMap<K, V>`.
+    ///
+    /// # Examples
+    /// ```
+    /// use deqmap::DeqMap;
+    ///
+    /// let arr = [("b", 2), ("c", 3), ("d", 4), ("e", 5)];
+    /// let dm = DeqMap::from_keyed_array(arr);
+    /// ```
+    pub fn from_keyed_array<const N: usize>(arr: [(K, V); N]) -> DeqMap<K, V> {
+        let mut dm = Self::with_capacity(N, N);
+        dm.extend_keyed(arr);
+        dm
+    }
+
     /// Converts a vec of values `Vec<V>` into a `DeqMap<_, V>`.
     ///
     /// # Examples
@@ -60,9 +75,9 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     ///
     /// let dm: DeqMap<&str, _> = DeqMap::from_vec(vec![1, 2, 3, 4]);
     /// ```
-    pub fn from_vec(values: Vec<V>) -> DeqMap<K, V> {
+    pub fn from_vec(vec: Vec<V>) -> DeqMap<K, V> {
         DeqMap {
-            vals: VecDeque::from(values),
+            vals: VecDeque::from(vec),
             keys: HashMap::default(),
         }
     }
@@ -76,9 +91,9 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     /// let vec = vec![("b", 2), ("c", 3), ("d", 4), ("e", 5)];
     /// let dm = DeqMap::from_keyed_vec(vec);
     /// ```
-    pub fn from_keyed_vec(keyed_values: Vec<(K, V)>) -> DeqMap<K, V> {
-        let mut dm = Self::with_capacity(keyed_values.len(), keyed_values.len());
-        dm.extend_keyed(keyed_values);
+    pub fn from_keyed_vec(vec: Vec<(K, V)>) -> DeqMap<K, V> {
+        let mut dm = Self::with_capacity(vec.len(), vec.len());
+        dm.extend_keyed(vec);
         dm
     }
 
@@ -507,7 +522,7 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
         self.vals.is_empty()
     }
 
-    /// Returns `true` if there are no associated keys.
+    /// Returns `true` if there are no keys.
     ///
     /// # Examples
     /// ```
@@ -523,6 +538,28 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     #[inline]
     pub fn has_no_keys(&self) -> bool {
         self.keys.is_empty()
+    }
+
+    /// Returns the index of the value at the back, or `None` if the deqmap is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use deqmap::DeqMap;
+    ///
+    /// let mut dm = DeqMap::<&str, i32>::new();
+    /// assert_eq![dm.back_index(), None];
+    ///
+    /// dm.push_back(1);
+    /// assert_eq![dm.back_index(), Some(0)];
+    /// ```
+    #[inline]
+    pub fn back_index(&self) -> Option<usize> {
+        let len = self.vals.len();
+        if len > 0 {
+            Some(len - 1)
+        } else {
+            None
+        }
     }
 
     /// Clears the deqmap, removing all values.
@@ -549,7 +586,7 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     /// ```
     /// use deqmap::DeqMap;
     ///
-    /// let mut dm = DeqMap::from_keyed_vec(vec![("c", 3), ("d", 4)]);
+    /// let mut dm = DeqMap::<&str, i32>::from([("c", 3), ("d", 4)]);
     /// assert_eq![dm.len(), (2, 2)];
     ///
     /// dm.clear_keys();
@@ -567,7 +604,7 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     /// ```
     /// use deqmap::DeqMap;
     ///
-    /// let mut dm: DeqMap<&str, i32> = DeqMap::from_vec(vec![3, 4]);
+    /// let dm: DeqMap<&str, _> = [3, 4].into();
     /// assert_eq![dm.front(), Some(&3)];
     /// ```
     #[inline]
@@ -582,12 +619,42 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     /// ```
     /// use deqmap::DeqMap;
     ///
-    /// let mut dm: DeqMap<&str, i32> = DeqMap::from_vec(vec![3, 4]);
+    /// let mut dm: DeqMap<&str, _> = [3, 4].into();
     /// assert_eq![dm.front_mut(), Some(&mut 3)];
     /// ```
     #[inline]
     pub fn front_mut(&mut self) -> Option<&mut V> {
         self.vals.front_mut()
+    }
+
+    /// Provides a reference to the front element, alongside its key, if any,
+    /// or `None` if the deqmap is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use deqmap::DeqMap;
+    ///
+    /// let mut dm = DeqMap::from([("c", 3), ("d", 4)]);
+    /// assert_eq![dm.front_with_key(), Some((Some(&"c"), &3))];
+    /// ```
+    #[inline]
+    pub fn front_with_key(&self) -> Option<(Option<&K>, &V)> {
+        self.get_with_key(0).ok()
+    }
+
+    /// Provides a mutable reference to the front element, alongside its key,
+    /// if any, or `None` if the deqmap is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use deqmap::DeqMap;
+    ///
+    /// let mut dm = DeqMap::from([("c", 3), ("d", 4)]);
+    /// assert_eq![dm.front_mut_with_key(), Some((Some(&"c"), &mut 3))];
+    /// ```
+    #[inline]
+    pub fn front_mut_with_key(&mut self) -> Option<(Option<&K>, &mut V)> {
+        self.get_mut_with_key(0).ok()
     }
 
     /// Provides a reference to the back element,
@@ -597,7 +664,7 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     /// ```
     /// use deqmap::DeqMap;
     ///
-    /// let mut dm: DeqMap<&str, i32> = DeqMap::from_vec(vec![3, 4]);
+    /// let mut dm: DeqMap<&str, _> = [3, 4].into();
     /// assert_eq![dm.back(), Some(&4)];
     /// ```
     #[inline]
@@ -612,12 +679,42 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     /// ```
     /// use deqmap::DeqMap;
     ///
-    /// let mut dm: DeqMap<&str, i32> = DeqMap::from_vec(vec![3, 4]);
+    /// let mut dm: DeqMap<&str, _> = [3, 4].into();
     /// assert_eq![dm.back_mut(), Some(&mut 4)];
     /// ```
     #[inline]
     pub fn back_mut(&mut self) -> Option<&mut V> {
         self.vals.back_mut()
+    }
+
+    /// Provides a reference to the back element, alongside its key, if any,
+    /// or `None` if the deqmap is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use deqmap::DeqMap;
+    ///
+    /// let mut dm = DeqMap::from([("c", 3), ("d", 4)]);
+    /// assert_eq![dm.back_with_key(), Some((Some(&"d"), &4))];
+    /// ```
+    #[inline]
+    pub fn back_with_key(&self) -> Option<(Option<&K>, &V)> {
+        self.get_with_key(self.back_index()?).ok()
+    }
+
+    /// Provides a mutable reference to the back element, alongside its key,
+    /// if any, or `None` if the deqmap is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use deqmap::DeqMap;
+    ///
+    /// let mut dm = DeqMap::from([("c", 3), ("d", 4)]);
+    /// assert_eq![dm.back_mut_with_key(), Some((Some(&"d"), &mut 4))];
+    /// ```
+    #[inline]
+    pub fn back_mut_with_key(&mut self) -> Option<(Option<&K>, &mut V)> {
+        self.get_mut_with_key(self.back_index()?).ok()
     }
 
     /// Removes the front element and returns it, or `None` if the deqmap is empty.
@@ -626,7 +723,7 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     /// ```
     /// use deqmap::DeqMap;
     ///
-    /// let mut dm: DeqMap<&str, i32> = DeqMap::from_vec(vec![3, 4]);
+    /// let mut dm: DeqMap<&str, _> = [3, 4].into();
     ///
     /// assert_eq![dm.pop_front(), Some(3)];
     /// assert_eq![dm.pop_front(), Some(4)];
@@ -653,7 +750,7 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     /// ```
     /// use deqmap::DeqMap;
     ///
-    /// let mut dm = DeqMap::from_keyed_vec(vec![("c", 3), ("d", 4)]);
+    /// let mut dm = DeqMap::from([("c", 3), ("d", 4)]);
     /// dm.push_back(5);
     ///
     /// assert_eq![dm.pop_front_with_key(), Some((Some("c"), 3))];
@@ -681,23 +778,46 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     }
 
     /// Removes the back element and returns it, or `None` if the deqmap is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use deqmap::DeqMap;
+    ///
+    /// let mut dm: DeqMap<&str, _> = [3, 4].into();
+    ///
+    /// assert_eq![dm.pop_back(), Some(4)];
+    /// assert_eq![dm.pop_back(), Some(3)];
+    /// assert_eq![dm.pop_back(), None];
+    /// ```
     #[inline]
     pub fn pop_back(&mut self) -> Option<V> {
         // remove any keyed entry pointing to the last value.
-        let idx = self.len_values() - 1;
+        let idx = self.back_index()?;
         self.keys.retain(|_, v| *v != idx);
-
         self.vals.pop_back()
     }
 
     /// Removes the back element and returns it alongside its key, if any,
     /// or `None` if the deqmap is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use deqmap::DeqMap;
+    ///
+    /// let mut dm = DeqMap::from([("c", 3), ("d", 4)]);
+    /// dm.push_front(2);
+    ///
+    /// assert_eq![dm.pop_back_with_key(), Some((Some("d"), 4))];
+    /// assert_eq![dm.pop_back_with_key(), Some((Some("c"), 3))];
+    /// assert_eq![dm.pop_back_with_key(), Some((None, 2))];
+    /// assert_eq![dm.pop_back_with_key(), None];
+    /// ```
     #[inline]
     pub fn pop_back_with_key(&mut self) -> Option<(Option<K>, V)>
     where
         K: Clone,
     {
-        let idx = self.len_values() - 1;
+        let idx = self.back_index()?;
         let key = self.find_key_unchecked(idx).cloned();
         if let Some(ref k) = key {
             self.keys.remove_entry(k);
@@ -832,6 +952,22 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     ///
     /// # Errors
     /// Errors if the `new_key` already exists.
+    ///
+    /// # Examples
+    /// ```
+    /// use deqmap::{DeqMap, DeqMapError};
+    ///
+    /// let mut dm = DeqMap::from_keyed_vec(vec![("a", 1), ("b", 2), ("c", 3)]);
+    ///
+    /// assert_eq![dm.reset_key("a", "A"), Ok(true)];
+    /// assert_eq![dm.reset_key("d", "D"), Ok(false)];
+    /// assert_eq![dm.reset_key("c", "b"), Err(DeqMapError::KeyAlreadyExists)];
+    ///
+    /// assert_eq![dm.get_keyed("A"), Some(&1)];
+    /// assert_eq![dm.get_keyed("b"), Some(&2)];
+    /// assert_eq![dm.get_keyed("c"), Some(&3)];
+    /// assert_eq![dm.get_keyed("D"), None];
+    /// ```
     ///
     /// See also [`set_key`][Self::set_key].
     pub fn reset_key<Q>(&mut self, old_key: &Q, new_key: K) -> Result<bool>
@@ -1499,6 +1635,21 @@ impl<K: Hash + Eq, V, const N: usize> From<[V; N]> for DeqMap<K, V> {
     /// ```
     fn from(arr: [V; N]) -> Self {
         DeqMap::from_array(arr)
+    }
+}
+impl<K: Hash + Eq, V, const N: usize> From<[(K, V); N]> for DeqMap<K, V> {
+    /// Converts an array of values `[V; N]` into a `DeqMap<_, V>`.
+    ///
+    /// # Examples
+    /// ```
+    /// use deqmap::DeqMap;
+    ///
+    /// let dm1 = DeqMap::<&str, i32>::from([("a", 1), ("b", 2)]);
+    /// let dm2 = [("a", 1), ("b", 2)].into();
+    /// assert_eq![dm1, dm2];
+    /// ```
+    fn from(arr: [(K, V); N]) -> Self {
+        DeqMap::from_keyed_array(arr)
     }
 }
 
