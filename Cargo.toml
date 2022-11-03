@@ -19,9 +19,15 @@ categories = ["data-structures"]
 keywords = ["queue", "deque", "map", "hashmap", "collections"]
 publish = true
 
-[dependencies]
-
 [badges]
 maintenance = { status = "experimental" }
 
+[dependencies]
+
 [dev-dependencies]
+criterion = "0.4"
+
+[[bench]]
+name = "deqmap"
+harness = false
+
