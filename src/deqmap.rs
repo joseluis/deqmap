@@ -2063,7 +2063,6 @@ where
     }
 }
 
-// FIXME:
 // /// An iterator over mutable references to values and optional keys of a [`DeqMap`].
 // pub struct DeqMapIterMut<'dm, K, V>
 // where
@@ -2080,9 +2079,9 @@ where
 //     type Item = (Option<&'dm K>, &'dm mut V);
 //     fn next(&'dm mut self) -> Option<Self::Item> {
 //         // if let Some(v) = self.dm.vec.get(self.idx) {
-//         if self.dm.vec.get(self.idx).is_some() {
+//         if self.dm.vals.get(self.idx).is_some() {
 //             self.idx += 1;
-//             self.dm.get_mut_with_key(self.idx -1)
+//             self.dm.get_mut_with_key(self.idx -1).ok()
 //         } else {
 //             None
 //         }
@@ -2139,7 +2138,6 @@ impl<K: Hash + Eq, V, const N: usize> From<[(Option<K>, V); N]> for DeqMap<K, V>
 }
 
 /* impl From vec */
-// TODO
 
 impl<K: Hash + Eq, V> From<Vec<V>> for DeqMap<K, V> {
     /// Converts a vec of values `Vec<V>` into a `DeqMap<_, V>`.

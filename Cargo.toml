@@ -4,7 +4,7 @@ description = "A double-ended queue with optional keys."
 version = "0.0.4"
 edition = "2021"
 resolver = "2"
-rust-version = "1.64.0"
+rust-version = "1.65.0"
 authors = ["José Luis Cruz <joseluis@andamira.net>"]
 repository = "https://github.com/joseluis/deqmap"
 documentation = "https://docs.rs/deqmap"
@@ -31,3 +31,8 @@ criterion = "0.4"
 name = "deqmap"
 harness = false
 
+[profile.release]
+strip = "debuginfo"
+
+[profile.dev]
+split-debuginfo = "packed"
