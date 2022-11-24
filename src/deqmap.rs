@@ -474,7 +474,7 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     /// use deqmap::DeqMap;
     ///
     /// let mut dm: DeqMap<u32, u8> = DeqMap::from([3, 4]);
-    /// assert_eq![dm.as_mut_slice(), &[3, 4]];
+    /// assert_eq![dm.as_slice(), &[3, 4]];
     /// ```
     #[inline]
     pub fn as_slice(&mut self) -> &[V] {
@@ -505,9 +505,9 @@ impl<K: Hash + Eq, V> DeqMap<K, V> {
     /// use deqmap::DeqMap;
     ///
     /// let mut dm: DeqMap<&str, u8> = DeqMap::from([(Some("a"), 1), (None, 2), (Some("c"), 3)]);
-    /// let vec = dm.to_vec();
+    /// let vec = dm.as_vec_with_keys();
     ///
-    /// assert_eq![dm.to_vec(), vec![(Some(&"a"), &1), (None, &2), (Some(&"c"), &3)]];
+    /// assert_eq![dm.as_vec_with_keys(), vec![(Some(&"a"), &1), (None, &2), (Some(&"c"), &3)]];
     /// ```
     #[inline]
     pub fn as_vec_with_keys(&self) -> Vec<(Option<&K>, &V)> {
